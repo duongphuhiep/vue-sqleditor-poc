@@ -66,30 +66,15 @@ export default {
   },
   methods: {
     /*
-    Return a list of suggestion base on the lineContext and a searchString. 
-    Input:
-    - searchString is the current word that user is typing
-    - lineContext is the content of line from first character to the current word (searchString)
-    Output: a list of suggestion: each suggestion is an object {text, displayText, className}. See https://codemirror.net/doc/manual.html#addon_show-hint
+    Return a list of suggestion base on the searchString (the current word that user is typing).
+    Each suggestion is an object {text, displayText, className}. See https://codemirror.net/doc/manual.html#addon_show-hint
     - keywords start with the searchString appears first in the suggestion list
-    - lineContext (matching pattern) to narrow down the list
     */
-    suggest(lineContext, searchString) {
+    suggest(searchString) {
       searchString = searchString.toLowerCase();
-      let ignoreTable = false;
-      if (lineContext) {
-        //analyze the lineContext (TODO)
-        lineContext = lineContext.toLowerCase();
-        if (lineContext == "select ") {
-          ignoreTable = true;
-        }
-      }
-
       let startsWithList = [];
       let containsList = [];
       this.dico.forEach(suggestion => {
-        //eliminate suggestion base on searchString context analysis
-        if (ignoreTable && suggestion.className == "table") return;
         let keyword = suggestion.text.toLowerCase();
         if (keyword.startsWith(searchString)) startsWithList.push(suggestion);
         else if (keyword.includes(searchString)) containsList.push(suggestion);
@@ -105,10 +90,8 @@ export default {
       let cur = editor.getCursor();
       let token = editor.getTokenAt(cur);
       let searchString = token.string;
-      let line = editor.getLine(cur.line);
-      let searchContext = line ? line.substring(0, token.start) : null;
       return {
-        list: this.suggest(searchContext, searchString),
+        list: this.suggest(searchString),
         from: CodeMirror.Pos(cur.line, token.start),
         to: CodeMirror.Pos(cur.line, token.end)
       };

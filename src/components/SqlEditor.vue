@@ -71,22 +71,47 @@ export default {
     - keywords start with the searchString appears first in the suggestion list
     */
     suggest(searchString) {
-      searchString = searchString.toLowerCase();
-      let startsWithList = [];
-      let containsList = [];
-      this.dico.forEach(suggestion => {
-        let keyword = suggestion.text.toLowerCase();
-        if (keyword.startsWith(searchString)) startsWithList.push(suggestion);
-        else if (keyword.includes(searchString)) containsList.push(suggestion);
-      });
-      startsWithList.push(...containsList);
-      return startsWithList;
+      /*
+      we will score which suggesion should appears first, the higer the score, the higer is the appearance order
+      */
+      let token = searchString;
+      if (searchString.startsWith(".")) token = searchString.substring(1);
+      else token = searchString.toLowerCase();
+      let resu = [];
+      let N = this.dico.length;
+
+      //init scoring: only retains and score suggestions which contain the searchString
+      for (let i = 0; i < N; i++) {
+        let keyword = this.dico[i].text.toLowerCase();
+        let suggestion = null;
+        //the base score of all the suggestion is N-i (it means we respect the order in the dico)
+        if (keyword.startsWith(token)) {
+          //add N to the score of keywords which begin with the token to make them raise up in the suggestion list
+          suggestion = Object.assign({ score: N + (N - i) }, this.dico[i]);
+        } else if (keyword.includes(token)) {
+          suggestion = Object.assign({ score: N - i }, this.dico[i]);
+        }
+        if (suggestion) resu.push(suggestion);
+      }
+
+      //case suggestion for "."
+      if (searchString.startsWith(".")) {
+        //raise score of columns, decrease the score of sql keyword
+        resu.forEach(s => {
+          if (s.className == "column") s.score += N;
+          else if (s.className == "sql") s.score -= N;
+          return s;
+        });
+      }
+
+      //console.log(searchString);
+      return resu.sort((a, b) => b.score - a.score);
     },
     /*
     [hint implementation for codemirror](https://codemirror.net/doc/manual.html#addon_show-hint):
     take an editor instance and options object, and return a {list, from, to} object, where list is an array of strings or objects (the completions), and from and to give the start and end of the token that is being completed as {line, ch} objects. 
      */
-    hint(editor, _) {
+    hint(editor) {
       let cur = editor.getCursor();
       let token = editor.getTokenAt(cur);
       let searchString = token.string;
@@ -115,7 +140,7 @@ export default {
         }
       }
     });
-    this.editor.on("keypress", (editor, _) => {
+    this.editor.on("keypress", editor => {
       editor.showHint();
     });
   }
